@@ -16,7 +16,7 @@ export const API_BASE_URL = RAW_BASE.endsWith("/") ? RAW_BASE : RAW_BASE + "/";
 // base URL string if it isn't a parseable absolute URL.
 export const API_ORIGIN = (() => {
   try {
-    return new URL(API_BASE_URL).origin;
+    return new URL(API_BASE_URL, window.location.origin).origin;
   } catch {
     return API_BASE_URL.replace(/\/+$/, "");
   }
