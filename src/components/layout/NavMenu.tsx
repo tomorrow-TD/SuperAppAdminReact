@@ -39,6 +39,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { to: "/", label: "Home", icon: <DashboardOutlined />, permission: Permission.CanViewDashboard, exact: true },
+  { to: "/storefront", label: "Storefront", icon: <ShopOutlined />, permission: Permission.CanViewDashboard },
   { to: "/products", label: "Products", icon: <AppstoreOutlined />, permission: Permission.CanViewProducts },
   { to: "/orders", label: "Orders", icon: <ShoppingCartOutlined />, permission: Permission.CanViewOrders },
   { to: "/debt-collection", label: "Debt Collection", icon: <AccountBookOutlined />, permission: Permission.CanViewOrders },

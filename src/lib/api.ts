@@ -1,5 +1,5 @@
 import axios, { AxiosError, type AxiosRequestConfig } from "axios";
-import type { ApiResult } from "./types";
+import type { ApiResult, StorefrontAdminAuthResponse } from "./types";
 
 export const AUTH_STORAGE_KEY =
   import.meta.env.VITE_AUTH_STORAGE_KEY ?? "SuperAppAdminReact__Authentication";
@@ -9,6 +9,19 @@ export const AUTH_STORAGE_KEY =
 // the env var is written.
 const RAW_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 export const API_BASE_URL = RAW_BASE.endsWith("/") ? RAW_BASE : RAW_BASE + "/";
+
+const RAW_STOREFRONT_BASE =
+  import.meta.env.VITE_STOREFRONT_API_BASE_URL ??
+  "https://storefrontbackend.novotechafrica.com/api/v1/";
+export const STOREFRONT_API_BASE_URL = RAW_STOREFRONT_BASE.endsWith("/")
+  ? RAW_STOREFRONT_BASE
+  : RAW_STOREFRONT_BASE + "/";
+export const STOREFRONT_OWNER_STORAGE_KEY =
+  import.meta.env.VITE_STOREFRONT_OWNER_STORAGE_KEY ??
+  "StorefrontOwnerReact__Authentication";
+export const STOREFRONT_ADMIN_STORAGE_KEY =
+  import.meta.env.VITE_STOREFRONT_ADMIN_STORAGE_KEY ??
+  "StorefrontAdminReact__Authentication";
 
 // Some endpoints (e.g. the Worker/sales-personnel controller) live directly
 // under the host at `/api/...` rather than the versioned `/api/v1/` base.
@@ -59,6 +72,90 @@ export const http = axios.create({
   baseURL: API_BASE_URL,
   headers: { Accept: "application/json" },
 });
+
+const storefrontHttp = axios.create({
+  baseURL: STOREFRONT_API_BASE_URL,
+  headers: { Accept: "application/json" },
+});
+
+const storefrontAdminHttp = axios.create({
+  baseURL: STOREFRONT_API_BASE_URL,
+  headers: { Accept: "application/json" },
+});
+
+const storefrontAuthHttp = axios.create({
+  baseURL: STOREFRONT_API_BASE_URL,
+  headers: { Accept: "application/json" },
+});
+
+function readStorefrontOwnerToken(): string | null {
+  try {
+    const raw = localStorage.getItem(STOREFRONT_OWNER_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { accessToken?: string };
+    return parsed.accessToken ?? null;
+  } catch {
+    return null;
+  }
+}
+
+storefrontHttp.interceptors.request.use((config) => {
+  const token = readStorefrontOwnerToken();
+  if (token && isTokenValid(token)) {
+    config.headers = config.headers ?? {};
+    (config.headers as Record<string, string>)["Authorization"] =
+      `Bearer ${token}`;
+  }
+  return config;
+});
+
+storefrontHttp.interceptors.response.use(
+  (res) => res,
+  (error: AxiosError) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem(STOREFRONT_OWNER_STORAGE_KEY);
+      if (!window.location.pathname.toLowerCase().startsWith("/owner/login")
+        && !window.location.pathname.toLowerCase().startsWith("/owner/accept")) {
+        const returnUrl = encodeURIComponent(
+          window.location.pathname + window.location.search,
+        );
+        window.location.assign(`/owner/login?returnUrl=${returnUrl}`);
+      }
+    }
+    return Promise.reject(error);
+  },
+);
+
+function readStorefrontAdminToken(): string | null {
+  try {
+    const raw = localStorage.getItem(STOREFRONT_ADMIN_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { accessToken?: string };
+    return parsed.accessToken ?? null;
+  } catch {
+    return null;
+  }
+}
+
+storefrontAdminHttp.interceptors.request.use((config) => {
+  const token = readStorefrontAdminToken();
+  if (token && isTokenValid(token)) {
+    config.headers = config.headers ?? {};
+    (config.headers as Record<string, string>)["Authorization"] =
+      `Bearer ${token}`;
+  }
+  return config;
+});
+
+storefrontAdminHttp.interceptors.response.use(
+  (res) => res,
+  (error: AxiosError) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem(STOREFRONT_ADMIN_STORAGE_KEY);
+    }
+    return Promise.reject(error);
+  },
+);
 
 http.interceptors.request.use((config) => {
   const token = readToken();
@@ -179,6 +276,122 @@ export async function apiDelete<T>(
   } catch (err) {
     return fail<T>(err);
   }
+}
+
+// Owner-console requests use the storefront backend and a separate JWT from the
+// SuperApp administrator session. Keeping these helpers separate prevents an owner
+// token from ever being sent to an admin endpoint.
+export async function storefrontApiGet<T>(
+  url: string,
+  config?: AxiosRequestConfig,
+): Promise<ApiResult<T>> {
+  try {
+    const res = await storefrontHttp.get(url, config);
+    return normalize<T>(res.data);
+  } catch (err) {
+    return fail<T>(err);
+  }
+}
+
+export async function storefrontApiPost<T>(
+  url: string,
+  data?: unknown,
+  config?: AxiosRequestConfig,
+): Promise<ApiResult<T>> {
+  try {
+    const res = await storefrontHttp.post(url, data, config);
+    return normalize<T>(res.data);
+  } catch (err) {
+    return fail<T>(err);
+  }
+}
+
+/** Exchanges the current SuperApp admin session without persisting that token. */
+export async function exchangeStorefrontAdminSession(
+  superAppAccessToken: string,
+): Promise<ApiResult<StorefrontAdminAuthResponse>> {
+  try {
+    const res = await storefrontAuthHttp.post(
+      "auth/storefront-admin/exchange",
+      undefined,
+      { headers: { Authorization: `Bearer ${superAppAccessToken}` } },
+    );
+    const result = normalize<StorefrontAdminAuthResponse>(res.data);
+    if (result.status && result.data) {
+      localStorage.setItem(STOREFRONT_ADMIN_STORAGE_KEY, JSON.stringify(result.data));
+    }
+    return result;
+  } catch (err) {
+    return fail<StorefrontAdminAuthResponse>(err);
+  }
+}
+
+export async function ensureStorefrontAdminSession(): Promise<
+  ApiResult<StorefrontAdminAuthResponse>
+> {
+  try {
+    const localRaw = localStorage.getItem(STOREFRONT_ADMIN_STORAGE_KEY);
+    if (localRaw) {
+      const localAuth = JSON.parse(localRaw) as StorefrontAdminAuthResponse;
+      if (isTokenValid(localAuth.accessToken)) {
+        return {
+          data: localAuth,
+          message: "Storefront administrator session is active",
+          status: true,
+        };
+      }
+    }
+
+    const superAppRaw = localStorage.getItem(AUTH_STORAGE_KEY);
+    const superAppAuth = superAppRaw
+      ? JSON.parse(superAppRaw) as { accessToken?: string }
+      : null;
+    if (!superAppAuth?.accessToken) {
+      return {
+        data: null,
+        message: "Your SuperApp administrator session has expired",
+        status: false,
+      };
+    }
+    return exchangeStorefrontAdminSession(superAppAuth.accessToken);
+  } catch {
+    localStorage.removeItem(STOREFRONT_ADMIN_STORAGE_KEY);
+    return {
+      data: null,
+      message: "Storefront administrator authorization failed",
+      status: false,
+    };
+  }
+}
+
+export async function storefrontAdminApiPost<T>(
+  url: string,
+  data?: unknown,
+  config?: AxiosRequestConfig,
+): Promise<ApiResult<T>> {
+  try {
+    const res = await storefrontAdminHttp.post(url, data, config);
+    return normalize<T>(res.data);
+  } catch (err) {
+    return fail<T>(err);
+  }
+}
+
+export async function storefrontApiPut<T>(
+  url: string,
+  data?: unknown,
+  config?: AxiosRequestConfig,
+): Promise<ApiResult<T>> {
+  try {
+    const res = await storefrontHttp.put(url, data, config);
+    return normalize<T>(res.data);
+  } catch (err) {
+    return fail<T>(err);
+  }
+}
+
+export function isStorefrontOwnerLoggedIn(): boolean {
+  return isTokenValid(readStorefrontOwnerToken());
 }
 
 // Authenticated file download. Unlike `window.open(...)`, this routes through the

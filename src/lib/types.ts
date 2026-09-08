@@ -54,6 +54,13 @@ export interface AdminAccessReturnDto {
   userDTO: AdminUserReturnDto;
 }
 
+export interface StorefrontAdminAuthResponse {
+  accessToken: string;
+  expiresAt: string;
+  role: string;
+  adminUserId: string;
+}
+
 // Mirror of TDSuperApp.DTOs.Response.AdminDashboardResponse
 export interface TopRankingProductResponse {
   id: string;
@@ -847,4 +854,259 @@ export interface WorkerSalesOverview {
   unattributedOrders: number;
   unattributedAmount: number;
   workers: WorkerSalesStats[] | null;
+}
+
+// ── Storefront owner onboarding / settlement ────────────────────────────────
+export interface StorefrontOwnerCandidateDto {
+  id: string;
+  email: string | null;
+  userName: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  companyName: string | null;
+  phoneNumber: string | null;
+  isCacVerified: boolean;
+  isAlreadyInvited: boolean;
+  isInvitationAccepted: boolean;
+}
+
+export interface StorefrontOwnerDetailDto {
+  id: string;
+  email: string;
+  userName: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  companyName: string | null;
+  phoneNumber: string | null;
+  isCacVerified: boolean;
+  userStatus: string | null;
+  userType: string | null;
+  isSuspended: boolean;
+  isDeleted: boolean;
+  isActive: boolean;
+  isInvited: boolean;
+  isInvitationAccepted: boolean;
+  invitedAt: string | null;
+  acceptedAt: string | null;
+  primaryStorefrontBrandId: string | null;
+  defaultStorefrontPriceMargin: number | null;
+}
+
+export interface StorefrontOwnerInvitationResponse {
+  owner: StorefrontOwnerDetailDto;
+  expiresAt: string;
+  sentAt: string;
+}
+
+export interface StorefrontInvitationSendResponse {
+  ownerId: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  companyName: string | null;
+  expiresAt: string;
+  sentAt: string;
+  resent: boolean;
+}
+
+export interface StorefrontOwnerInvitationValidationDto {
+  ownerId: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  userName: string | null;
+  companyName: string | null;
+  phoneNumber: string | null;
+  isCacVerified: boolean;
+  expiresAt: string;
+  isAccepted: boolean;
+}
+
+export interface StorefrontOwnerAuthResponse {
+  accessToken: string;
+  expiresAt: string;
+  storeOwnerId: string;
+  role: string;
+  email: string;
+  storeName: string | null;
+  companyName: string | null;
+}
+
+export interface StorefrontBrandReturnDto {
+  id: string;
+  brandId: string | null;
+  brandImageUrl: string | null;
+  name: string | null;
+  dynamicsId: string | null;
+  isActive: boolean;
+  storefrontPriceMargin: number;
+  dateCreated: string;
+}
+
+export interface StorefrontOwnerBrandDto {
+  storefrontBrandId: string;
+  brandId: string | null;
+  name: string | null;
+  brandImageUrl: string | null;
+  isSelected: boolean;
+  isPrimary: boolean;
+  storefrontPriceMargin: number | null;
+  globalStorefrontPriceMargin: number;
+  themeName: string | null;
+  themeJson: string | null;
+  ownerDefaultStorefrontPriceMargin: number | null;
+}
+
+export interface StorefrontCategoryDto {
+  id: string;
+  name: string | null;
+  imageUrl: string | null;
+  isActive: boolean;
+  dateCreated: string;
+  productCount: number;
+}
+
+export interface StorefrontBrandThemeDto {
+  storefrontBrandId: string;
+  themeName: string;
+  themeJson: string;
+  isActive: boolean;
+}
+
+export interface StorefrontThemeResponse {
+  storeOwnerId: string;
+  storeSlug: string | null;
+  themeName: string;
+  theme: unknown;
+  isPublished: boolean;
+  revision: number;
+  dateModified: string;
+}
+
+export interface StorefrontWalletBalanceDto {
+  walletId: string;
+  ownerId: string;
+  balance: number;
+  currency: string;
+  updatedAt: string;
+}
+
+export interface StorefrontWalletStatsDto {
+  ownerId: string;
+  walletId: string | null;
+  currency: string;
+  walletBalance: number;
+  totalOrders: number;
+  paidOrders: number;
+  revenue: number;
+  totalCommission: number;
+  currentCommission: number;
+  commissionPaid: number;
+  pendingCommission: number;
+  ordersWaitingForCommission: number;
+  reservedForPayout: number;
+  totalPayoutsPaid: number;
+}
+
+export interface StorefrontWalletTransactionDto {
+  id: string;
+  orderId: string | null;
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  type: string;
+  reference: string;
+  description: string;
+  status: string;
+  transactionKind: string;
+  payoutId: string | null;
+  transactionDate: string;
+}
+
+export interface StorefrontWalletOrderDto {
+  orderId: string;
+  orderReference: string | null;
+  externalOrderId: string | null;
+  amount: number;
+  commission: number;
+  commissionStatus: string | null;
+  isPaid: boolean;
+  isDynamicsPosted: boolean;
+  orderStatus: string | null;
+  customerName: string | null;
+  dateCreated: string;
+}
+
+export interface StorefrontPayoutDto {
+  id: string;
+  ownerId: string;
+  walletId: string;
+  amount: number;
+  fee: number;
+  netAmount: number;
+  currency: string;
+  status: string;
+  requestReference: string;
+  bankCode: string;
+  accountName: string;
+  accountNumberLast4: string;
+  reason: string | null;
+  failureReason: string | null;
+  requestedAt: string;
+  approvedAt: string | null;
+  processingAt: string | null;
+  paidAt: string | null;
+  rejectedAt: string | null;
+}
+
+export interface SuperAdminWalletDto {
+  walletId: string | null;
+  walletKey: string;
+  balance: number;
+  currency: string;
+  updatedAt: string | null;
+}
+
+export interface SuperAdminWalletTransactionDto {
+  id: string;
+  orderId: string | null;
+  storefrontOwnerId: string | null;
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  type: string;
+  transactionKind: string;
+  reference: string;
+  description: string;
+  status: string;
+  transactionDate: string;
+}
+
+export interface StorefrontDashboardActivityDto {
+  type: string;
+  reference: string;
+  description: string;
+  amount: number;
+  status: string;
+  date: string;
+  orderId: string | null;
+  payoutId: string | null;
+}
+
+export interface StorefrontDashboardDto {
+  ownerId: string;
+  currency: string;
+  totalOrders: number;
+  paidOrders: number;
+  grossSales: number;
+  superAppOrderValue: number;
+  currentWalletBalance: number;
+  totalCommission: number;
+  currentCommission: number;
+  commissionPaid: number;
+  pendingCommission: number;
+  ordersWaitingForCommission: number;
+  reservedForPayout: number;
+  totalPayoutsPaid: number;
+  recentActivity: StorefrontDashboardActivityDto[];
 }

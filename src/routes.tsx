@@ -6,7 +6,11 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Permission } from "@/lib/permissions";
 
 const LoginPage = lazy(() => import("@/pages/Login"));
+const StorefrontOwnerAcceptPage = lazy(() => import("@/pages/StorefrontOwnerAccept"));
+const StorefrontOwnerLoginPage = lazy(() => import("@/pages/StorefrontOwnerLogin"));
+const StorefrontOwnerDashboardPage = lazy(() => import("@/pages/StorefrontOwnerDashboard"));
 const DashboardPage = lazy(() => import("@/pages/Dashboard"));
+const StorefrontPage = lazy(() => import("@/pages/Storefront"));
 const ProductsPage = lazy(() => import("@/pages/Products"));
 const OrdersPage = lazy(() => import("@/pages/Orders"));
 const BrandsPage = lazy(() => import("@/pages/Brands"));
@@ -78,6 +82,18 @@ function withSuspense(node: React.ReactNode) {
 
 export const router = createBrowserRouter([
   {
+    path: "/owner/accept",
+    element: <Suspense fallback={loginLoader}><StorefrontOwnerAcceptPage /></Suspense>,
+  },
+  {
+    path: "/owner/login",
+    element: <Suspense fallback={loginLoader}><StorefrontOwnerLoginPage /></Suspense>,
+  },
+  {
+    path: "/owner",
+    element: <Suspense fallback={pageLoader}><StorefrontOwnerDashboardPage /></Suspense>,
+  },
+  {
     path: "/login",
     element: <Suspense fallback={loginLoader}><LoginPage /></Suspense>,
   },
@@ -94,6 +110,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute permission={Permission.CanViewDashboard}>
             {withSuspense(<DashboardPage />)}
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "storefront",
+        element: (
+          <ProtectedRoute permission={Permission.CanViewDashboard}>
+            {withSuspense(<StorefrontPage />)}
           </ProtectedRoute>
         ),
       },

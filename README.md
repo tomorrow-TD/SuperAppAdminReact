@@ -1,6 +1,6 @@
 # SuperApp Admin (React)
 
-A modern, responsive admin dashboard for **TDAfrica SuperApp**. This React application mirrors the existing Blazor WebAssembly admin app (`SuperAppAdminWeb`) and talks to the same `TDSuperApp.WEB` backend API — requiring zero backend changes.
+A modern, responsive admin dashboard for **TDAfrica SuperApp**. This React application mirrors the existing Blazor WebAssembly admin app (`SuperAppAdminWeb`) and talks to the SuperApp Admin API. It also contains isolated storefront-owner routes backed by the storefront backend.
 
 It provides a complete management interface for products, orders, customers, promos, deals, support tickets, KYC verification, CAC registrations, warehouse logistics, admin user roles, and more.
 
@@ -36,6 +36,8 @@ SuperApp Admin (React) is a role-based administrative interface built to manage 
 - **Support ticket handling** with escalation capabilities.
 - **Audit logging** for promos and deals to track administrative changes.
 - **Granular permission-based access control** synced with the backend role system.
+- **Storefront owner operations** for manual customer invitations, brand assortment,
+  owner-specific margins, and settlement activity.
 
 ---
 
@@ -105,14 +107,20 @@ Create a `.env` file in the project root (you can copy from `.env.example` if av
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `VITE_API_BASE_URL` | Yes | — | Base URL of the `TDSuperApp.WEB` API. **Must end with a trailing slash** (e.g., `https://api.example.com/`). |
+| `VITE_API_BASE_URL` | Yes | — | Base URL of the `TDSuperApp.ADMIN.API`. **Must end with a trailing slash** (e.g., `https://api.example.com/api/v1/`). |
+| `VITE_STOREFRONT_API_BASE_URL` | No | `https://storefrontbackend.novotechafrica.com/api/v1/` | Base URL used by the storefront-owner invitation and owner console. |
 | `VITE_AUTH_STORAGE_KEY` | No | `SuperAppAdminReact__Authentication` | The `localStorage` key used to persist the JWT authentication object. |
+| `VITE_STOREFRONT_OWNER_STORAGE_KEY` | No | `StorefrontOwnerReact__Authentication` | The separate `localStorage` key used by storefront-owner sessions. |
+| `VITE_STOREFRONT_ADMIN_STORAGE_KEY` | No | `StorefrontAdminReact__Authentication` | The short-lived local Storefront-admin session used for invitation actions. |
 
 ### Example `.env`
 
 ```env
-VITE_API_BASE_URL=https://tdsuperapp-web-api-staging.azurewebsites.net/
+VITE_API_BASE_URL=https://tdsuperapp-admin-api-test.azurewebsites.net/api/v1/
+VITE_STOREFRONT_API_BASE_URL=https://storefrontbackend.novotechafrica.com/api/v1/
 VITE_AUTH_STORAGE_KEY=SuperAppAdminReact__Authentication
+VITE_STOREFRONT_OWNER_STORAGE_KEY=StorefrontOwnerReact__Authentication
+VITE_STOREFRONT_ADMIN_STORAGE_KEY=StorefrontAdminReact__Authentication
 ```
 
 ---
@@ -386,4 +394,3 @@ If you need to extend or port more Blazor pages:
 ---
 
 *One platform · One purpose · Powered by innovation*
-
