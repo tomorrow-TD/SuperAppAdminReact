@@ -6,7 +6,6 @@ import {
   ContainerOutlined,
   CustomerServiceOutlined,
   DashboardOutlined,
-  DollarOutlined,
   GiftOutlined,
   GroupOutlined,
   HistoryOutlined,
@@ -75,7 +74,6 @@ const NAV_TREE: NavNode[] = [
       { type: "leaf", to: "/franchise-brands", label: "Brands", icon: <ShopOutlined />, permission: Permission.CanViewBrands },
       { type: "leaf", to: "/franchise-categories", label: "Categories", icon: <TagsOutlined />, permission: Permission.CanViewBrands },
       { type: "leaf", to: "/franchise-store-owners", label: "Store Owners", icon: <TeamOutlined />, permission: Permission.CanViewUser },
-      { type: "leaf", to: "/franchise-payouts", label: "Payouts", icon: <DollarOutlined />, permission: Permission.CanViewUser },
       { type: "leaf", to: "/franchise-superadmin-wallet", label: "Settlement Wallet", icon: <AccountBookOutlined />, permission: Permission.CanViewUser },
     ],
   },
@@ -97,7 +95,6 @@ const STOREFRONT_PATHS = [
   "/franchise-brands",
   "/franchise-categories",
   "/franchise-store-owners",
-  "/franchise-payouts",
   "/franchise-superadmin-wallet",
 ];
 

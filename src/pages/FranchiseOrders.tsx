@@ -1,185 +1,268 @@
 import { OrderDetailModal } from "@/components/orders/OrderDetailModal";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import { API_BASE_URL, apiGet } from "@/lib/api";
-import { PaymentMethodId } from "@/lib/paymentMethods";
+import {
+  getAdminStorefrontWalletOrders,
+  getStoreOwners,
+} from "@/lib/storefrontApi";
 import type {
-    OrderReturnDto,
-    OrderStatusReturnDTO,
-    PaginationResponse,
-} from "@/lib/types";
-import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
-import { DownloadOutlined, EyeOutlined } from "@ant-design/icons";
+  StorefrontStoreOwnerDto,
+  StorefrontWalletOrderDto,
+} from "@/lib/storefrontTypes";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { EyeOutlined, ShopOutlined } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import type { TableColumnsType } from "antd";
 import {
-    Button,
-    Card,
-    Input,
-    Select,
-    Space,
-    Table,
-    Tag,
-    Typography,
+  App as AntdApp,
+  Button,
+  Card,
+  Empty,
+  Input,
+  Select,
+  Table,
+  Tag,
+  Typography,
 } from "antd";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 const ALL = "__all__";
 
+function ownerLabel(row: StorefrontStoreOwnerDto) {
+  const name = [row.firstName, row.lastName].filter(Boolean).join(" ").trim();
+  const company = row.companyName?.trim();
+  if (company && name) return `${company} — ${name}`;
+  return company || name || row.userName || row.id;
+}
+
 export default function FranchiseOrdersPage() {
+  const navigate = useNavigate();
+  const { message } = AntdApp.useApp();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const [ownerId, setOwnerId] = useState(searchParams.get("ownerId") ?? "");
+  const [ownerSearch, setOwnerSearch] = useState("");
+  const debouncedOwnerSearch = useDebouncedValue(ownerSearch, 350);
+
+  useEffect(() => {
+    const fromUrl = searchParams.get("ownerId") ?? "";
+    setOwnerId((prev) => (prev === fromUrl ? prev : fromUrl));
+  }, [searchParams]);
+
   const [keyword, setKeyword] = useState("");
   const debouncedKeyword = useDebouncedValue(keyword, 350);
-  const [orderStatusId, setOrderStatusId] = useState<string>(ALL);
-  const [isPaid, setIsPaid] = useState<string>(ALL);
-  const [paymentMethodId, setPaymentMethodId] = useState<string>(ALL);
-  const [isPoa, setIsPoa] = useState<string>(ALL);
+  const [paidFilter, setPaidFilter] = useState<string>(ALL);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
-  const { data: statuses } = useQuery({
-    queryKey: ["franchise-order-statuses"],
+  function selectOwner(id: string) {
+    setOwnerId(id);
+    setPage(1);
+    const next = new URLSearchParams(searchParams);
+    if (id) next.set("ownerId", id);
+    else next.delete("ownerId");
+    setSearchParams(next, { replace: true });
+  }
+
+  const ownersQuery = useQuery({
+    queryKey: ["storefront", "store-owners", "orders-picker", debouncedOwnerSearch],
     queryFn: async () => {
-      const res = await apiGet<OrderStatusReturnDTO[]>("Component/GetOrderStatuses");
-      if (!res.status) throw new Error(res.message ?? "Failed to load statuses");
-      return res.data ?? [];
+      const res = await getStoreOwners({
+        PageSize: 50,
+        PageNumber: 1,
+        SearchString: debouncedOwnerSearch.trim() || undefined,
+      });
+      if (!res.status) throw new Error(res.message ?? "Failed to load store owners");
+      return res.data?.data ?? [];
     },
-    staleTime: 5 * 60_000,
+    staleTime: 60_000,
   });
 
-  const queryParams = useMemo(() => {
-    const params = new URLSearchParams();
-    params.set("PageSize", String(pageSize));
-    params.set("PageNumber", String(page));
-    if (debouncedKeyword.trim()) params.set("SearchString", debouncedKeyword.trim());
-    if (orderStatusId !== ALL) params.set("orderStatusId", orderStatusId);
-    if (isPaid !== ALL) params.set("isPaid", isPaid);
-    if (paymentMethodId !== ALL) params.set("paymentMethodId", paymentMethodId);
-    if (isPoa !== ALL) params.set("isPoa", isPoa);
-    return params;
-  }, [pageSize, page, debouncedKeyword, orderStatusId, isPaid, paymentMethodId, isPoa]);
+  const ownerOptions = useMemo(() => {
+    const list = ownersQuery.data ?? [];
+    if (ownerId && !list.some((o) => o.id === ownerId)) {
+      return [
+        {
+          id: ownerId,
+          companyName: searchParams.get("company"),
+          userName: searchParams.get("user"),
+          firstName: searchParams.get("owner"),
+          lastName: null,
+          isCacVerified: true,
+          cacVerifiedAt: null,
+        } satisfies StorefrontStoreOwnerDto,
+        ...list,
+      ];
+    }
+    return list;
+  }, [ownersQuery.data, ownerId, searchParams]);
 
-  const { data, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ["franchise-orders", queryParams.toString()],
+  const ordersParams = useMemo(
+    () => ({
+      PageSize: pageSize,
+      PageNumber: page,
+      SearchString: debouncedKeyword.trim() || undefined,
+    }),
+    [pageSize, page, debouncedKeyword],
+  );
+
+  const ordersQuery = useQuery({
+    queryKey: ["franchise-storefront-orders", ownerId, ordersParams],
     queryFn: async () => {
-      const res = await apiGet<PaginationResponse<OrderReturnDto>>(
-        `Order/GetAllOrders?${queryParams.toString()}`,
-      );
-      if (!res.status) throw new Error(res.message ?? "Failed to load orders");
+      const res = await getAdminStorefrontWalletOrders(ownerId, ordersParams);
+      if (!res.status) throw new Error(res.message ?? "Failed to load storefront orders");
       return res.data;
     },
+    enabled: !!ownerId,
   });
 
-  const rows = data?.data ?? [];
-  const totalItems = Number(data?.count ?? 0);
+  useEffect(() => {
+    if (ordersQuery.isError) {
+      message.error(
+        ordersQuery.error instanceof Error
+          ? ordersQuery.error.message
+          : "Unable to load storefront orders.",
+      );
+    }
+  }, [ordersQuery.isError, ordersQuery.error, message]);
 
-  function openDetail(id: string) {
-    setSelectedOrderId(id);
-    setDetailOpen(true);
-  }
+  const rows = useMemo(() => {
+    const data = ordersQuery.data?.data ?? [];
+    if (paidFilter === ALL) return data;
+    const wantPaid = paidFilter === "true";
+    return data.filter((row) => row.isPaid === wantPaid);
+  }, [ordersQuery.data?.data, paidFilter]);
 
-  function downloadAll() {
-    window.open(`${API_BASE_URL}Order/DownloadOrders`, "_blank");
-  }
+  const totalItems = Number(ordersQuery.data?.count ?? 0);
+  const selectedOwner = ownerOptions.find((o) => o.id === ownerId);
 
-  function downloadFiltered() {
-    window.open(`${API_BASE_URL}Order/DownloadOrders?${queryParams}`, "_blank");
-  }
-
-  function totalFor(order: OrderReturnDto, currency: "NGN" | "USD") {
-    const picker =
-      currency === "NGN"
-        ? (op: OrderReturnDto["orderedProducts"][number]) => op.amountInNaira
-        : (op: OrderReturnDto["orderedProducts"][number]) => op.amountInDollar;
-    return (order.orderedProducts ?? []).reduce(
-      (acc, op) => acc + picker(op) * op.quantity,
-      0,
-    );
-  }
-
-  const columns: TableColumnsType<OrderReturnDto> = [
-    { title: "Company", dataIndex: "companyName", render: (v) => <span className="font-medium">{v ?? "—"}</span> },
-    { title: "Phone", dataIndex: "phoneNumber", render: (v) => <span className="text-xs">{v ?? "—"}</span> },
-    {
-      title: "NGN",
-      key: "ngn",
-      align: "right",
-      render: (_, r) => formatCurrency(totalFor(r, "NGN"), "NGN"),
-    },
-    {
-      title: "USD",
-      key: "usd",
-      align: "right",
-      render: (_, r) => formatCurrency(totalFor(r, "USD"), "USD"),
-    },
-    {
-      title: "Location",
-      key: "location",
-      render: (_, r) => (
-        <span className="block max-w-[220px] truncate">
-          {r.deliveryAddress ?? r.location?.name ?? "—"}
-        </span>
-      ),
-    },
+  const columns: TableColumnsType<StorefrontWalletOrderDto> = [
     {
       title: "Date",
       dataIndex: "dateCreated",
+      width: 140,
       render: (v) => <span className="text-xs text-muted-foreground">{formatDate(v)}</span>,
     },
-    { title: "Payment", dataIndex: ["paymentMethod", "method"], render: (v) => v ?? "—" },
-    { title: "Delivery", dataIndex: ["deliveryMethod", "method"], render: (v) => v ?? "—" },
     {
-      title: "POA",
-      dataIndex: "isPoaTransaction",
-      render: (v: boolean) => (v ? <Tag color="gold">POA</Tag> : <Tag>—</Tag>),
+      title: "Order",
+      dataIndex: "orderReference",
+      render: (v, row) => (
+        <Button
+          type="link"
+          className="!px-0"
+          onClick={() => {
+            setSelectedOrderId(row.orderId);
+            setDetailOpen(true);
+          }}
+        >
+          {v ?? row.externalOrderId ?? row.orderId.slice(0, 8)}
+        </Button>
+      ),
     },
     {
-      title: "Fully paid",
-      dataIndex: "isFullyPaid",
-      render: (v: boolean) =>
-        v ? <Tag color="success">Yes</Tag> : <Tag color="warning">No</Tag>,
+      title: "Customer",
+      dataIndex: "customerName",
+      render: (v) => v ?? "—",
+    },
+    {
+      title: "Amount",
+      dataIndex: "amount",
+      align: "right",
+      render: (v) => formatCurrency(Number(v ?? 0), "NGN"),
+    },
+    {
+      title: "Commission",
+      dataIndex: "commission",
+      align: "right",
+      render: (v) => formatCurrency(Number(v ?? 0), "NGN"),
+    },
+    {
+      title: "Commission status",
+      dataIndex: "commissionStatus",
+      render: (v) => <Tag>{v ?? "—"}</Tag>,
+    },
+    {
+      title: "Paid",
+      dataIndex: "isPaid",
+      width: 80,
+      render: (v: boolean) => (
+        <Tag color={v ? "success" : "warning"}>{v ? "Yes" : "No"}</Tag>
+      ),
     },
     {
       title: "Status",
-      dataIndex: ["orderStatus", "status"],
-      render: (v: string) => <Tag>{v ?? "—"}</Tag>,
-    },
-    {
-      title: "Qty",
-      key: "qty",
-      align: "right",
-      render: (_, r) => formatNumber(r.orderedProducts?.length ?? 0),
+      dataIndex: "orderStatus",
+      render: (v) => <Tag>{v ?? "—"}</Tag>,
     },
     {
       title: "",
       key: "actions",
       width: 60,
       align: "right",
-      render: (_, r) => (
-        <Button size="small" icon={<EyeOutlined />} onClick={() => openDetail(r.id)} />
+      render: (_, row) => (
+        <Button
+          size="small"
+          icon={<EyeOutlined />}
+          onClick={() => {
+            setSelectedOrderId(row.orderId);
+            setDetailOpen(true);
+          }}
+        />
       ),
     },
   ];
 
   return (
     <div className="space-y-6">
-      <div>
-        <Typography.Title level={3} className="!m-0">
-          Franchise orders
-        </Typography.Title>
-        <Typography.Text type="secondary">
-          Search, filter, and inspect storefront orders.
-        </Typography.Text>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <Typography.Title level={3} className="!m-0">
+            Franchise orders
+          </Typography.Title>
+          <Typography.Text type="secondary">
+            View storefront orders by store owner (read-only).
+          </Typography.Text>
+        </div>
+        {ownerId ? (
+          <Button
+            icon={<ShopOutlined />}
+            onClick={() => navigate(`/franchise-store-owners/${ownerId}`)}
+          >
+            Owner detail
+          </Button>
+        ) : null}
       </div>
 
       <Card styles={{ body: { padding: 16 } }}>
         <div className="grid gap-3 md:grid-cols-12">
+          <Select
+            className="md:col-span-5"
+            showSearch
+            allowClear
+            placeholder="Select store owner…"
+            value={ownerId || undefined}
+            filterOption={false}
+            onSearch={setOwnerSearch}
+            onChange={(v) => selectOwner(v ?? "")}
+            loading={ownersQuery.isLoading || ownersQuery.isFetching}
+            notFoundContent={
+              ownersQuery.isLoading ? "Loading…" : "No store owners found"
+            }
+            options={ownerOptions.map((o) => ({
+              value: o.id,
+              label: ownerLabel(o),
+            }))}
+            optionFilterProp="label"
+          />
           <Input
-            className="md:col-span-12"
-            placeholder="Search by company, phone, Dynamics ID…"
+            className="md:col-span-4"
+            placeholder="Search order ref, customer…"
             value={keyword}
             allowClear
+            disabled={!ownerId}
             onChange={(e) => {
               setPage(1);
               setKeyword(e.target.value);
@@ -187,22 +270,11 @@ export default function FranchiseOrdersPage() {
           />
           <Select
             className="md:col-span-3"
-            value={orderStatusId}
+            value={paidFilter}
+            disabled={!ownerId}
             onChange={(v) => {
               setPage(1);
-              setOrderStatusId(v);
-            }}
-            options={[
-              { value: ALL, label: "All statuses" },
-              ...(statuses ?? []).map((s) => ({ value: s.id, label: s.status })),
-            ]}
-          />
-          <Select
-            className="md:col-span-3"
-            value={isPaid}
-            onChange={(v) => {
-              setPage(1);
-              setIsPaid(v);
+              setPaidFilter(v);
             }}
             options={[
               { value: ALL, label: "All payment statuses" },
@@ -210,69 +282,46 @@ export default function FranchiseOrdersPage() {
               { value: "false", label: "Unpaid" },
             ]}
           />
-          <Select
-            className="md:col-span-3"
-            value={paymentMethodId}
-            onChange={(v) => {
-              setPage(1);
-              setPaymentMethodId(v);
-            }}
-            options={[
-              { value: ALL, label: "All methods" },
-              { value: PaymentMethodId.Credit, label: "Credit" },
-              { value: PaymentMethodId.CashOrCard, label: "Cash/Card" },
-            ]}
-          />
-          <Select
-            className="md:col-span-3"
-            value={isPoa}
-            onChange={(v) => {
-              setPage(1);
-              setIsPoa(v);
-            }}
-            options={[
-              { value: ALL, label: "All transactions" },
-              { value: "true", label: "POA only" },
-              { value: "false", label: "Non-POA" },
-            ]}
-          />
         </div>
+        {selectedOwner ? (
+          <div className="mt-3 text-sm text-muted-foreground">
+            Showing orders for{" "}
+            <Link
+              className="text-[#800020] hover:underline"
+              to={`/franchise-store-owners/${selectedOwner.id}`}
+            >
+              {ownerLabel(selectedOwner)}
+            </Link>
+          </div>
+        ) : null}
       </Card>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-sm text-muted-foreground">
-          {isFetching && !isLoading ? "Refreshing…" : null}
-        </span>
-        <Space>
-          <Button icon={<DownloadOutlined />} onClick={downloadFiltered}>
-            Download (filtered)
-          </Button>
-          <Button icon={<DownloadOutlined />} onClick={downloadAll}>
-            Download all
-          </Button>
-        </Space>
-      </div>
-
       <Card styles={{ body: { padding: 0 } }}>
-        <Table<OrderReturnDto>
-          rowKey="id"
-          dataSource={rows}
-          columns={columns}
-          loading={isLoading || isFetching}
-          pagination={{
-            current: page,
-            pageSize,
-            total: totalItems,
-            showSizeChanger: true,
-            pageSizeOptions: [10, 20, 50, 100],
-            onChange: (p, ps) => {
-              setPage(p);
-              setPageSize(ps);
-            },
-          }}
-          scroll={{ x: 1200 }}
-          locale={{ emptyText: "No franchise orders match the current filters." }}
-        />
+        {!ownerId ? (
+          <div className="p-10">
+            <Empty description="Select a store owner to load storefront orders." />
+          </div>
+        ) : (
+          <Table<StorefrontWalletOrderDto>
+            rowKey="orderId"
+            dataSource={rows}
+            columns={columns}
+            loading={ordersQuery.isLoading || ordersQuery.isFetching}
+            pagination={{
+              current: page,
+              pageSize,
+              total: totalItems,
+              showSizeChanger: true,
+              pageSizeOptions: [10, 20, 50, 100],
+              onChange: (p, ps) => {
+                setPage(p);
+                setPageSize(ps);
+              },
+            }}
+            scroll={{ x: 1000 }}
+            locale={{ emptyText: "No storefront orders for this owner." }}
+          />
+        )}
       </Card>
 
       <OrderDetailModal
@@ -282,7 +331,7 @@ export default function FranchiseOrdersPage() {
           setDetailOpen(v);
           if (!v) setSelectedOrderId(null);
         }}
-        onUpdated={() => refetch()}
+        onUpdated={() => ordersQuery.refetch()}
       />
     </div>
   );

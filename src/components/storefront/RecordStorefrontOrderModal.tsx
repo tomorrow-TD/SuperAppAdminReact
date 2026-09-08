@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Modal,
@@ -6,15 +6,24 @@ import {
   Input,
   InputNumber,
   Select,
+  Button,
+  Space,
+  Typography,
   App as AntdApp,
 } from "antd";
+import { PlusOutlined, CalculatorOutlined } from "@ant-design/icons";
 import { apiGet } from "@/lib/api";
-import type { DeliveryMethodReturnDTO } from "@/lib/types";
+import type { DeliveryMethodReturnDTO, LocationReturnDTO } from "@/lib/types";
 import {
   createStorefrontOrder,
   createStorefrontSettlementOrder,
+  quoteStorefront,
 } from "@/lib/storefrontApi";
-import type { StorefrontPaidOrderRequest } from "@/lib/storefrontTypes";
+import type {
+  StorefrontPaidOrderRequest,
+  StorefrontProductQuantity,
+} from "@/lib/storefrontTypes";
+import { formatCurrency } from "@/lib/utils";
 
 interface Props {
   open: boolean;
@@ -24,6 +33,15 @@ interface Props {
   onSuccess?: () => void;
 }
 
+type FormValues = StorefrontPaidOrderRequest & {
+  products?: Array<{
+    productId: string;
+    variantId?: string;
+    locationId?: string;
+    quantity: number;
+  }>;
+};
+
 export function RecordStorefrontOrderModal({
   open,
   ownerId,
@@ -32,7 +50,9 @@ export function RecordStorefrontOrderModal({
   onSuccess,
 }: Props) {
   const { message } = AntdApp.useApp();
-  const [form] = Form.useForm<StorefrontPaidOrderRequest>();
+  const [form] = Form.useForm<FormValues>();
+  const [quoting, setQuoting] = useState(false);
+  const [lastQuoteTotal, setLastQuoteTotal] = useState<number | null>(null);
 
   const { data: deliveryMethods } = useQuery({
     queryKey: ["delivery-methods"],
@@ -47,24 +67,90 @@ export function RecordStorefrontOrderModal({
     enabled: open,
   });
 
+  const { data: locations } = useQuery({
+    queryKey: ["locations"],
+    queryFn: async () => {
+      const res = await apiGet<LocationReturnDTO[]>("Location/GetLocations");
+      if (!res.status) throw new Error(res.message ?? "Failed to load locations");
+      return res.data ?? [];
+    },
+    staleTime: 5 * 60_000,
+    enabled: open,
+  });
+
   useEffect(() => {
     if (open) {
+      setLastQuoteTotal(null);
       form.setFieldsValue({
         storefrontOwnerId: ownerId,
         currency: "NGN",
         fees: 0,
+        products: [],
       });
     }
   }, [open, ownerId, form]);
 
+  async function handleQuote() {
+    const values = form.getFieldsValue();
+    const lines = (values.products ?? []).filter(
+      (p): p is NonNullable<typeof p> =>
+        Boolean(p?.productId && p?.variantId && p?.locationId && (p?.quantity ?? 0) > 0),
+    );
+    if (lines.length === 0) {
+      message.warning(
+        "Add at least one product line with product, variant, location, and quantity.",
+      );
+      return;
+    }
+    setQuoting(true);
+    try {
+      const res = await quoteStorefront({
+        products: lines.map((p) => ({
+          productId: p.productId,
+          variantId: p.variantId!,
+          locationId: p.locationId!,
+          quantity: p.quantity,
+        })),
+      });
+      if (!res.status || !res.data) {
+        message.error(res.message ?? "Quote failed");
+        return;
+      }
+      setLastQuoteTotal(res.data.totalInNaira);
+      form.setFieldsValue({
+        amountPaid: res.data.totalInNaira,
+        currency: "NGN",
+      });
+      message.success(
+        `Quote total ${formatCurrency(res.data.totalInNaira, "NGN")} applied to amount paid.`,
+      );
+    } finally {
+      setQuoting(false);
+    }
+  }
+
   async function handleOk() {
     try {
       const values = await form.validateFields();
+      const products: StorefrontProductQuantity[] | undefined = (values.products ?? [])
+        .filter((p) => p?.productId && p.quantity > 0)
+        .map((p) => ({
+          productId: p.productId,
+          variantId: p.variantId || undefined,
+          locationId: p.locationId || undefined,
+          quantity: p.quantity,
+        }));
+
+      const body: StorefrontPaidOrderRequest = {
+        ...values,
+        products: products?.length ? products : null,
+      };
+
       const fn =
         mode === "settlement"
           ? createStorefrontSettlementOrder
           : createStorefrontOrder;
-      const res = await fn(values);
+      const res = await fn(body);
       if (!res.status) {
         message.error(res.message ?? "Failed to record order");
         return;
@@ -87,7 +173,7 @@ export function RecordStorefrontOrderModal({
       title={mode === "settlement" ? "Record settlement order" : "Record storefront order"}
       onCancel={() => onOpenChange(false)}
       onOk={handleOk}
-      width={560}
+      width={640}
       destroyOnClose
     >
       <Form form={form} layout="vertical" className="mt-4">
@@ -116,6 +202,11 @@ export function RecordStorefrontOrderModal({
             <InputNumber className="!w-full" min={0} precision={2} />
           </Form.Item>
         </div>
+        {lastQuoteTotal != null ? (
+          <Typography.Text type="secondary" className="mb-3 block text-xs">
+            Last quote: {formatCurrency(lastQuoteTotal, "NGN")}
+          </Typography.Text>
+        ) : null}
         <Form.Item
           name="currency"
           label="Currency"
@@ -136,6 +227,93 @@ export function RecordStorefrontOrderModal({
             }))}
           />
         </Form.Item>
+        <Form.Item name="locationId" label="Order location (optional)">
+          <Select
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            placeholder="Warehouse / location"
+            options={(locations ?? []).map((l) => ({
+              value: l.id,
+              label: l.name ?? l.id,
+            }))}
+          />
+        </Form.Item>
+
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <Typography.Text strong>Products (optional)</Typography.Text>
+          <Button
+            size="small"
+            icon={<CalculatorOutlined />}
+            loading={quoting}
+            onClick={handleQuote}
+          >
+            Quote (Storefront/Quote)
+          </Button>
+        </div>
+        <Form.List name="products">
+          {(fields, { add, remove }) => (
+            <div className="mb-4 space-y-3">
+              {fields.map((field) => (
+                <div
+                  key={field.key}
+                  className="grid gap-2 rounded border border-border p-3 sm:grid-cols-12"
+                >
+                  <Form.Item
+                    className="!mb-0 sm:col-span-4"
+                    name={[field.name, "productId"]}
+                    rules={[{ required: true, message: "Product ID" }]}
+                    label="Product ID"
+                  >
+                    <Input placeholder="product UUID" />
+                  </Form.Item>
+                  <Form.Item
+                    className="!mb-0 sm:col-span-3"
+                    name={[field.name, "variantId"]}
+                    label="Variant ID"
+                    rules={[{ required: true, message: "Required for quote" }]}
+                  >
+                    <Input placeholder="variant UUID" />
+                  </Form.Item>
+                  <Form.Item
+                    className="!mb-0 sm:col-span-3"
+                    name={[field.name, "locationId"]}
+                    label="Location"
+                    rules={[{ required: true, message: "Required for quote" }]}
+                  >
+                    <Select
+                      showSearch
+                      optionFilterProp="label"
+                      placeholder="Location"
+                      options={(locations ?? []).map((l) => ({
+                        value: l.id,
+                        label: l.name ?? l.id,
+                      }))}
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    className="!mb-0 sm:col-span-1"
+                    name={[field.name, "quantity"]}
+                    label="Qty"
+                    rules={[{ required: true }]}
+                    initialValue={1}
+                  >
+                    <InputNumber className="!w-full" min={1} />
+                  </Form.Item>
+                  <div className="flex items-end sm:col-span-1">
+                    <Button type="link" danger onClick={() => remove(field.name)}>
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              <Button type="dashed" block icon={<PlusOutlined />} onClick={() => add({ quantity: 1 })}>
+                Add product line
+              </Button>
+            </div>
+          )}
+        </Form.List>
+
         <Form.Item name="name" label="Customer name" rules={[{ required: true }]}>
           <Input />
         </Form.Item>
@@ -152,6 +330,9 @@ export function RecordStorefrontOrderModal({
         <Form.Item name="deliveryAddress" label="Delivery address">
           <Input.TextArea rows={2} />
         </Form.Item>
+        <Space className="text-xs text-muted-foreground">
+          Quote uses consumer API <code>Storefront/Quote</code> and fills amount paid.
+        </Space>
       </Form>
     </Modal>
   );
