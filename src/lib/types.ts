@@ -586,6 +586,39 @@ export interface UpdateCouponRequest {
   products?: CouponProductInput[] | null;
 }
 
+// ---- Coupon product bulk upload ----
+// `POST /api/Coupon/products/upload` (multipart, field `file`) resolves and validates
+// spreadsheet rows but persists nothing — there is no coupon id in the route. The
+// resolved rows are merged into the coupon form and written by the normal create/update
+// call, so a bad sheet can never half-write a coupon.
+export interface CouponProductUploadRow {
+  rowNumber?: number | null;
+  productId: string;
+  productName?: string | null;
+  dynamicsId?: string | null;
+  // The currency the product actually sells in, when the server reports it: an override
+  // priced only in the other currency is accepted but never applies at checkout.
+  showNairaCurrency?: boolean | null;
+  overridePriceInNaira?: number | null;
+  overridePriceInDollar?: number | null;
+}
+
+// A row the server rejected (`errors`) or accepted with a caveat (`warnings`).
+export interface CouponProductUploadIssue {
+  rowNumber?: number | null;
+  identifier?: string | null;
+  message?: string | null;
+}
+
+export interface CouponProductUploadResponse {
+  products?: CouponProductUploadRow[] | null;
+  errors?: CouponProductUploadIssue[] | null;
+  warnings?: CouponProductUploadIssue[] | null;
+  totalRows?: number | null;
+  resolvedRows?: number | null;
+  failedRows?: number | null;
+}
+
 // ---- Deal ----
 export type DealEnum = "PercentageDiscount" | "FixedDiscount" | "BuyOneGetOneFree";
 
