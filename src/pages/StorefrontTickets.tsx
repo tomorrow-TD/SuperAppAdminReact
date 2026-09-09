@@ -150,7 +150,7 @@ export default function StorefrontTicketsPage() {
     {
       title: "Topic",
       dataIndex: "topic",
-      render: (v: string, r) => (
+      render: (v: string) => (
         <div className="flex items-center gap-2">
           <span className="truncate font-medium">{v}</span>
         </div>
