@@ -287,6 +287,8 @@ export interface CustomerResponse extends BaseUserResponse {
   isCreditTransactionEnabled: boolean;
   userWarehouses: LocationReturnDTO[] | null;
   lastOrderDate: string | null;
+  isCacVerified: boolean | null;
+  cacVerifiedAt: string | null;
 }
 
 // ---- CAC Registration ----

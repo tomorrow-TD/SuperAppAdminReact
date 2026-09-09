@@ -20,7 +20,7 @@ import {
   Typography,
 } from "antd";
 import type { TableColumnsType } from "antd";
-import { ArrowLeftOutlined, CalculatorOutlined, EditOutlined, EyeOutlined, MessageOutlined, ShopOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined, CalculatorOutlined, DownOutlined, EditOutlined, EyeOutlined, MessageOutlined, ShopOutlined, UpOutlined } from "@ant-design/icons";
 import { apiGet } from "@/lib/api";
 import {
   addStorefrontTicketComment,
@@ -32,16 +32,15 @@ import {
   getOwnerProduct,
   getOwnerProducts,
   getOwnerQuote,
+  getStorefrontBrands,
   getStorefrontEarnings,
   getStorefrontEarningsSummary,
   getStorefrontOwner,
   getStorefrontOwnerBrands,
-  getStorefrontOwnerDashboard,
   getStorefrontTicket,
   getStorefrontTickets,
 } from "@/lib/storefrontApi";
 import type {
-  StorefrontDashboardActivityDto,
   StorefrontEarningDto,
   StorefrontOwnerBrandDto,
   StorefrontOwnerConfigurationRequest,
@@ -114,6 +113,7 @@ export default function FranchiseStoreOwnerDetailPage() {
   const [ticketOpen, setTicketOpen] = useState(false);
 
   const [configOpen, setConfigOpen] = useState(false);
+  const [overviewOpen, setOverviewOpen] = useState(false);
 
   const [catalogSearch, setCatalogSearch] = useState("");
   const debouncedCatalogSearch = useDebouncedValue(catalogSearch, 350);
@@ -233,16 +233,6 @@ export default function FranchiseStoreOwnerDetailPage() {
       const res = await getStorefrontOwnerBrands(storeOwnerId!);
       if (!res.status) throw new Error(res.message ?? "Failed to load owner brands");
       return res.data ?? [];
-    },
-    enabled: !!storeOwnerId,
-  });
-
-  const dashboardQuery = useQuery({
-    queryKey: ["storefront-owner-dashboard", storeOwnerId],
-    queryFn: async () => {
-      const res = await getStorefrontOwnerDashboard(storeOwnerId!);
-      if (!res.status) throw new Error(res.message ?? "Failed to load dashboard");
-      return res.data;
     },
     enabled: !!storeOwnerId,
   });
@@ -634,16 +624,26 @@ export default function FranchiseStoreOwnerDetailPage() {
         title="Owner overview"
         loading={ownerQuery.isLoading}
         extra={
-          <Button
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => setConfigOpen(true)}
-          >
-            Configure
-          </Button>
+          <Space size={4}>
+            <Button
+              size="small"
+              icon={overviewOpen ? <UpOutlined /> : <DownOutlined />}
+              onClick={() => setOverviewOpen((v) => !v)}
+            >
+              {overviewOpen ? "Hide details" : "View details"}
+            </Button>
+            <Button
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => setConfigOpen(true)}
+            >
+              Configure
+            </Button>
+          </Space>
         }
       >
-        <div className="space-y-4">
+        {overviewOpen ? (
+          <div className="space-y-4">
           <Descriptions column={{ xs: 1, sm: 2, lg: 3 }} size="small" colon={false}>
             <Descriptions.Item label="Email">
               {ownerQuery.data?.email ?? "—"}
@@ -734,100 +734,6 @@ export default function FranchiseStoreOwnerDetailPage() {
             />
           </div>
         </div>
-      </Card>
-
-      <Card title="Dashboard" loading={dashboardQuery.isLoading}>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          <Statistic
-            title="Gross sales"
-            value={dashboardQuery.data?.grossSales ?? 0}
-            formatter={() =>
-              money(dashboardQuery.data?.grossSales ?? 0, dashboardQuery.data?.currency)
-            }
-          />
-          <Statistic
-            title="Wallet balance"
-            value={dashboardQuery.data?.currentWalletBalance ?? 0}
-            formatter={() =>
-              money(
-                dashboardQuery.data?.currentWalletBalance ?? 0,
-                dashboardQuery.data?.currency,
-              )
-            }
-          />
-          <Statistic
-            title="Total commission"
-            value={dashboardQuery.data?.totalCommission ?? 0}
-            formatter={() =>
-              money(
-                dashboardQuery.data?.totalCommission ?? 0,
-                dashboardQuery.data?.currency,
-              )
-            }
-          />
-          <Statistic
-            title="Pending commission"
-            value={dashboardQuery.data?.pendingCommission ?? 0}
-            formatter={() =>
-              money(
-                dashboardQuery.data?.pendingCommission ?? 0,
-                dashboardQuery.data?.currency,
-              )
-            }
-          />
-          <Statistic
-            title="Payouts paid"
-            value={dashboardQuery.data?.totalPayoutsPaid ?? 0}
-            formatter={() =>
-              money(
-                dashboardQuery.data?.totalPayoutsPaid ?? 0,
-                dashboardQuery.data?.currency,
-              )
-            }
-          />
-          <Statistic title="Paid orders" value={dashboardQuery.data?.paidOrders ?? 0} />
-        </div>
-
-        {dashboardQuery.data?.recentActivity?.length ? (
-          <div className="mt-4">
-            <Typography.Text strong className="mb-2 block">
-              Recent activity
-            </Typography.Text>
-            <Table<StorefrontDashboardActivityDto>
-              rowKey={(r) => `${r.date}-${r.reference ?? r.orderId ?? r.payoutId ?? ""}`}
-              size="small"
-              dataSource={dashboardQuery.data.recentActivity}
-              pagination={false}
-              columns={[
-                {
-                  title: "Date",
-                  dataIndex: "date",
-                  width: 150,
-                  render: (v) => <span className="text-xs">{formatDate(v)}</span>,
-                },
-                { title: "Type", dataIndex: "type", width: 110, render: (v) => v ?? "—" },
-                {
-                  title: "Reference",
-                  dataIndex: "reference",
-                  ellipsis: true,
-                  render: (v) => v ?? "—",
-                },
-                {
-                  title: "Amount",
-                  dataIndex: "amount",
-                  align: "right",
-                  render: (v: number) =>
-                    money(v, dashboardQuery.data?.currency),
-                },
-                {
-                  title: "Status",
-                  dataIndex: "status",
-                  width: 110,
-                  render: (v) => statusTag(v),
-                },
-              ]}
-            />
-          </div>
         ) : null}
       </Card>
 
@@ -1237,6 +1143,18 @@ function OwnerConfigModal({
   const [primaryBrandId, setPrimaryBrandId] = useState<string | null>(null);
   const [defaultMargin, setDefaultMargin] = useState<number | null>(null);
   const [margins, setMargins] = useState<Record<string, number | null>>({});
+  const [assignedBrandIds, setAssignedBrandIds] = useState<string[]>([]);
+
+  // All storefront brands — the pool an owner can be assigned to.
+  const allBrandsQuery = useQuery({
+    queryKey: ["storefront", "brands", "all"],
+    queryFn: async () => {
+      const res = await getStorefrontBrands({ PageSize: 500, PageNumber: 1 });
+      if (!res.status) throw new Error(res.message ?? "Failed to load storefront brands");
+      return res.data?.data ?? [];
+    },
+    enabled: open,
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -1247,12 +1165,14 @@ function OwnerConfigModal({
       next[b.storefrontBrandId] = b.storefrontPriceMargin;
     }
     setMargins(next);
+    setAssignedBrandIds(brands.map((b) => b.storefrontBrandId));
   }, [open, owner, brands]);
 
   async function save() {
     setSaving(true);
     try {
       const body: StorefrontOwnerConfigurationRequest = {
+        storefrontBrandIds: assignedBrandIds,
         primaryStorefrontBrandId: primaryBrandId,
         defaultStorefrontPriceMargin: defaultMargin,
         brandMargins: brands
@@ -1276,9 +1196,11 @@ function OwnerConfigModal({
     }
   }
 
-  const brandOptions = brands.map((b) => ({
-    value: b.storefrontBrandId,
-    label: b.name ?? b.storefrontBrandId.slice(0, 8),
+  const allBrands = allBrandsQuery.data ?? [];
+
+  const brandOptions = allBrands.map((b) => ({
+    value: b.id,
+    label: b.name,
   }));
 
   return (
@@ -1293,6 +1215,25 @@ function OwnerConfigModal({
       destroyOnClose
     >
       <Form layout="vertical">
+        <Form.Item label="Assigned brands">
+          <Select
+            mode="multiple"
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            placeholder="Assign storefront brands…"
+            value={assignedBrandIds}
+            onChange={setAssignedBrandIds}
+            options={brandOptions}
+            loading={allBrandsQuery.isLoading}
+            style={{ width: "100%" }}
+            notFoundContent={
+              allBrandsQuery.isLoading
+                ? "Loading brands…"
+                : "No storefront brands found"
+            }
+          />
+        </Form.Item>
         <Form.Item label="Primary brand">
           <Select
             allowClear
