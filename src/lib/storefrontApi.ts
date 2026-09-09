@@ -1,5 +1,5 @@
 import { apiDelete, apiGet, apiPost, apiPut } from "./storefrontHttp";
-import type { ApiResult } from "./types";
+import type { ApiResult, PaginationResponse, TicketResponse } from "./types";
 import type {
   AddStorefrontBrandRequest,
   AddStorefrontCategoryRequest,
@@ -8,21 +8,39 @@ import type {
   SetVariantStorefrontMarginRequest,
   StorefrontBrandAdminDto,
   StorefrontBrandDto,
+  StorefrontBrandThemeDto,
+  StorefrontBrandThemeRequest,
   StorefrontCategoryDto,
   StorefrontCategoryProductsRequest,
+  StorefrontDashboardDto,
   StorefrontEarningsSummaryDto,
-  StorefrontPaidOrderRequest,
-  StorefrontPaidOrderResponse,
+  StorefrontOwnerBrandDto,
+  StorefrontOwnerBrandMarginBulkRequest,
+  StorefrontOwnerBrandSelectionRequest,
+  StorefrontOwnerConfigurationRequest,
+  StorefrontOwnerDetailDto,
+  StorefrontOwnerInvitationResponse,
+  StorefrontOwnerInvitationValidationResponse,
+  StorefrontOwnerInvitationTokenRequest,
+  StorefrontCouponRequestDecision,
+  StorefrontCouponRequestResponse,
+  StorefrontCouponRequestStatus,
+  StorefrontPagedCouponRequests,
+  CreateStorefrontCouponRequest,
   StorefrontPagedBrands,
   StorefrontPagedCategories,
   StorefrontPagedCategoryProducts,
   StorefrontPagedEarnings,
+  StorefrontPagedOwnerCandidates,
+  StorefrontPagedOwnerDetails,
   StorefrontPagedPayouts,
   StorefrontPagedProducts,
   StorefrontPagedStoreOwners,
   StorefrontPagedWalletLedger,
   StorefrontPagedWalletOrders,
   StorefrontPagedWalletTransactions,
+  StorefrontPaidOrderRequest,
+  StorefrontPaidOrderResponse,
   StorefrontPayoutAuditDto,
   StorefrontPayoutDecisionRequest,
   StorefrontPayoutDto,
@@ -33,6 +51,11 @@ import type {
   StorefrontProductDto,
   StorefrontQuoteDto,
   StorefrontQuoteRequest,
+  StorefrontSettlementCancellationRequest,
+  StorefrontSettlementRecoveryDto,
+  StorefrontSettlementRefundCompletionRequest,
+  StorefrontTicketCommentRequest,
+  StorefrontTicketRequest,
   StorefrontWalletAdjustmentRequest,
   StorefrontWalletBalanceDto,
   StorefrontWalletStatsDto,
@@ -553,4 +576,336 @@ export function createStorefrontOrder(body: StorefrontPaidOrderRequest) {
 
 export function createStorefrontSettlementOrder(body: StorefrontPaidOrderRequest) {
   return apiPost<StorefrontPaidOrderResponse>("storefront/settlement-orders", body);
+}
+
+// —— Store owner management (StorefrontOwner) ——
+
+/** Rich store-owner list (invite status, suspension, primary brand). */
+export function getStorefrontOwners(params: PagedParams = {}) {
+  return apiGet<StorefrontPagedOwnerDetails>(
+    `Storefront/GetStorefrontOwners${toQuery(params)}`,
+  );
+}
+
+export function getAcceptedStorefrontOwners(params: PagedOwnerParams = {}) {
+  return apiGet<StorefrontPagedOwnerDetails>(
+    `Storefront/GetAcceptedStorefrontOwners${toQuery(params)}`,
+  );
+}
+
+export function getOwnerCandidates(params: PagedOwnerParams = {}) {
+  return apiGet<StorefrontPagedOwnerCandidates>(
+    `Storefront/GetOwnerCandidates${toQuery(params)}`,
+  );
+}
+
+export function getStorefrontOwner(ownerId: string) {
+  return apiGet<StorefrontOwnerDetailDto>(
+    `Storefront/GetStorefrontOwner/${encodeURIComponent(ownerId)}`,
+  );
+}
+
+export function inviteStorefrontOwner(ownerId: string) {
+  return apiPost<StorefrontOwnerInvitationResponse>(
+    `Storefront/InviteStorefrontOwner/${encodeURIComponent(ownerId)}`,
+  );
+}
+
+export function resendStorefrontOwnerInvitation(ownerId: string) {
+  return apiPost<StorefrontOwnerInvitationResponse>(
+    `Storefront/ResendStorefrontOwnerInvitation/${encodeURIComponent(ownerId)}`,
+  );
+}
+
+export function revokeStorefrontOwnerInvitation(ownerId: string) {
+  return apiPost<StorefrontOwnerInvitationResponse>(
+    `Storefront/RevokeStorefrontOwnerInvitation/${encodeURIComponent(ownerId)}`,
+  );
+}
+
+export function validateStorefrontOwnerInvitation(
+  body: StorefrontOwnerInvitationTokenRequest,
+) {
+  return apiPost<StorefrontOwnerInvitationValidationResponse>(
+    "Storefront/ValidateStorefrontOwnerInvitation",
+    body,
+  );
+}
+
+export function acceptStorefrontOwnerInvitation(
+  body: StorefrontOwnerInvitationTokenRequest,
+) {
+  return apiPost<StorefrontOwnerInvitationValidationResponse>(
+    "Storefront/AcceptStorefrontOwnerInvitation",
+    body,
+  );
+}
+
+export function configureStorefrontOwner(
+  ownerId: string,
+  body: StorefrontOwnerConfigurationRequest,
+) {
+  return apiPut<StorefrontOwnerDetailDto>(
+    `Storefront/ConfigureStorefrontOwner/${encodeURIComponent(ownerId)}`,
+    body,
+  );
+}
+
+export function setStorefrontOwnerBrands(
+  ownerId: string,
+  body: StorefrontOwnerBrandSelectionRequest,
+) {
+  return apiPut<StorefrontOwnerBrandDto[]>(
+    `Storefront/SetStorefrontOwnerBrands/${encodeURIComponent(ownerId)}`,
+    body,
+  );
+}
+
+export function setStorefrontOwnerBrandMargins(
+  body: StorefrontOwnerBrandMarginBulkRequest,
+) {
+  return apiPut<StorefrontOwnerBrandDto[]>(
+    "Storefront/SetStorefrontOwnerBrandMargins",
+    body,
+  );
+}
+
+export function getStorefrontOwnerBrands(ownerId: string) {
+  return apiGet<StorefrontOwnerBrandDto[]>(
+    `Storefront/GetStorefrontOwnerBrands/${encodeURIComponent(ownerId)}`,
+  );
+}
+
+export function getStorefrontOwnerPrimaryBrand(ownerId: string) {
+  return apiGet<StorefrontOwnerBrandDto>(
+    `Storefront/GetStorefrontOwnerPrimaryBrand/${encodeURIComponent(ownerId)}`,
+  );
+}
+
+export function getStorefrontBrandTheme(storefrontBrandId: string) {
+  return apiGet<StorefrontBrandThemeDto>(
+    `Storefront/GetStorefrontBrandTheme/${encodeURIComponent(storefrontBrandId)}`,
+  );
+}
+
+export function setStorefrontBrandTheme(
+  storefrontBrandId: string,
+  body: StorefrontBrandThemeRequest,
+) {
+  return apiPut<StorefrontBrandThemeDto>(
+    `Storefront/SetStorefrontBrandTheme/${encodeURIComponent(storefrontBrandId)}`,
+    body,
+  );
+}
+
+// —— Per-owner catalog & quote ——
+
+export function getOwnerBrands(ownerId: string) {
+  return apiGet<StorefrontBrandDto[]>(
+    `Storefront/GetOwnerBrands/${encodeURIComponent(ownerId)}`,
+  );
+}
+
+export function getOwnerProducts(
+  ownerId: string,
+  params: PagedOwnerParams & {
+    storefrontCategoryId?: string;
+    storefrontBrandId?: string;
+  } = {},
+) {
+  return apiGet<StorefrontPagedProducts>(
+    `Storefront/GetOwnerProducts/${encodeURIComponent(ownerId)}${toQuery(params)}`,
+  );
+}
+
+export function getOwnerProduct(ownerId: string, productId: string) {
+  return apiGet<StorefrontProductDto>(
+    `Storefront/GetOwnerProduct/${encodeURIComponent(ownerId)}/${encodeURIComponent(productId)}`,
+  );
+}
+
+export function getOwnerQuote(ownerId: string, body: StorefrontQuoteRequest) {
+  return apiPost<StorefrontQuoteDto>(
+    `Storefront/GetOwnerQuote/${encodeURIComponent(ownerId)}`,
+    body,
+  );
+}
+
+// —— Per-owner dashboard ——
+
+export function getStorefrontOwnerDashboard(
+  ownerId: string,
+  params: {
+    StartDate?: string;
+    EndDate?: string;
+    RecentActivitySize?: number;
+  } = {},
+) {
+  return apiGet<StorefrontDashboardDto>(
+    `admin/storefront/dashboard/${encodeURIComponent(ownerId)}${toQuery(params)}`,
+  );
+}
+
+// —— Payout completion ops ——
+
+export function createAdminPayoutForOwner(ownerId: string, body: StorefrontPayoutRequest) {
+  return apiPost<StorefrontPayoutDto>(
+    `admin/storefront/payouts/owner/${encodeURIComponent(ownerId)}`,
+    body,
+  );
+}
+
+export function cancelAdminPayoutForOwner(
+  payoutId: string,
+  ownerId: string,
+  body: StorefrontPayoutDecisionRequest = {},
+) {
+  return apiPost<StorefrontPayoutDto>(
+    `admin/storefront/payouts/${encodeURIComponent(payoutId)}/cancel-owner/${encodeURIComponent(ownerId)}`,
+    body,
+  );
+}
+
+// —— Settlement order parity ——
+
+export function getStorefrontSettlementOrder(orderId: string) {
+  return apiGet<StorefrontSettlementRecoveryDto>(
+    `storefront/settlement-orders/${encodeURIComponent(orderId)}`,
+  );
+}
+
+export function cancelStorefrontSettlementOrder(
+  orderId: string,
+  body: StorefrontSettlementCancellationRequest,
+) {
+  return apiPost<StorefrontSettlementRecoveryDto>(
+    `storefront/settlement-orders/${encodeURIComponent(orderId)}/cancel`,
+    body,
+  );
+}
+
+export function completeStorefrontSettlementRefund(
+  orderId: string,
+  body: StorefrontSettlementRefundCompletionRequest,
+) {
+  return apiPost<StorefrontSettlementRecoveryDto>(
+    `storefront/settlement-orders/${encodeURIComponent(orderId)}/refund-completed`,
+    body,
+  );
+}
+
+// —— Settlement recovery (admin) ——
+
+export function getSettlementRecoveryOrder(orderId: string) {
+  return apiGet<StorefrontSettlementRecoveryDto>(
+    `admin/storefront/settlement-recovery/orders/${encodeURIComponent(orderId)}`,
+  );
+}
+
+export function cancelSettlementRecoveryOrder(
+  orderId: string,
+  body: StorefrontSettlementCancellationRequest,
+) {
+  return apiPost<StorefrontSettlementRecoveryDto>(
+    `admin/storefront/settlement-recovery/orders/${encodeURIComponent(orderId)}/cancel`,
+    body,
+  );
+}
+
+export function completeSettlementRecoveryRefund(
+  orderId: string,
+  body: StorefrontSettlementRefundCompletionRequest,
+) {
+  return apiPost<StorefrontSettlementRecoveryDto>(
+    `admin/storefront/settlement-recovery/orders/${encodeURIComponent(orderId)}/refund-completed`,
+    body,
+  );
+}
+
+export function getPendingSettlementRefunds(maxCount = 100) {
+  return apiGet<StorefrontSettlementRecoveryDto[]>(
+    `admin/storefront/settlement-recovery/pending-refunds${toQuery({ maxCount })}`,
+  );
+}
+
+export function recoverFailedDynamicsSettlements() {
+  return apiPost<number>("admin/storefront/settlement-recovery/recover-failed-dynamics");
+}
+
+// —— Per-owner storefront tickets ——
+
+type PagedTicketParams = PagedOwnerParams & {
+  ticketStatus?: string;
+  ticketCategory?: string;
+};
+
+export function getStorefrontTickets(ownerId: string, params: PagedTicketParams = {}) {
+  return apiGet<PaginationResponse<TicketResponse>>(
+    `admin/storefront/tickets/${encodeURIComponent(ownerId)}${toQuery(params)}`,
+  );
+}
+
+export function createStorefrontTicket(ownerId: string, body: StorefrontTicketRequest) {
+  return apiPost<TicketResponse>(
+    `admin/storefront/tickets/${encodeURIComponent(ownerId)}`,
+    body,
+  );
+}
+
+export function getStorefrontTicket(ownerId: string, ticketId: string) {
+  return apiGet<TicketResponse>(
+    `admin/storefront/tickets/${encodeURIComponent(ownerId)}/${encodeURIComponent(ticketId)}`,
+  );
+}
+
+export function addStorefrontTicketComment(
+  ownerId: string,
+  ticketId: string,
+  body: StorefrontTicketCommentRequest,
+) {
+  return apiPost<TicketResponse>(
+    `admin/storefront/tickets/${encodeURIComponent(ownerId)}/${encodeURIComponent(ticketId)}/comments`,
+    body,
+  );
+}
+
+// —— Store owner coupon requests ——
+
+type CouponRequestListParams = PagedParams & {
+  status?: StorefrontCouponRequestStatus;
+};
+
+export function getStorefrontCouponRequests(params: CouponRequestListParams = {}) {
+  return apiGet<StorefrontPagedCouponRequests>(
+    `admin/storefront/owner-coupon-requests${toQuery(params)}`,
+  );
+}
+
+export function getStorefrontCouponRequest(requestId: string) {
+  return apiGet<StorefrontCouponRequestResponse>(
+    `admin/storefront/owner-coupon-requests/${encodeURIComponent(requestId)}`,
+  );
+}
+
+export function getOwnerCouponRequests(ownerId: string, params: PagedParams = {}) {
+  return apiGet<StorefrontPagedCouponRequests>(
+    `admin/storefront/owner-coupon-requests/owner/${encodeURIComponent(ownerId)}${toQuery(params)}`,
+  );
+}
+
+export function createOwnerCouponRequest(ownerId: string, body: CreateStorefrontCouponRequest) {
+  return apiPost<StorefrontCouponRequestResponse>(
+    `admin/storefront/owner-coupon-requests/owner/${encodeURIComponent(ownerId)}`,
+    body,
+  );
+}
+
+export function decideStorefrontCouponRequest(
+  requestId: string,
+  body: StorefrontCouponRequestDecision,
+) {
+  return apiPut<StorefrontCouponRequestResponse>(
+    `admin/storefront/owner-coupon-requests/${encodeURIComponent(requestId)}/decision`,
+    body,
+  );
 }

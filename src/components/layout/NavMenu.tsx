@@ -75,6 +75,8 @@ const NAV_TREE: NavNode[] = [
       { type: "leaf", to: "/franchise-categories", label: "Categories", icon: <TagsOutlined />, permission: Permission.CanViewBrands },
       { type: "leaf", to: "/franchise-store-owners", label: "Store Owners", icon: <TeamOutlined />, permission: Permission.CanViewUser },
       { type: "leaf", to: "/franchise-superadmin-wallet", label: "Settlement Wallet", icon: <AccountBookOutlined />, permission: Permission.CanViewUser },
+      { type: "leaf", to: "/settlement-recovery", label: "Settlement Recovery", icon: <HistoryOutlined />, permission: Permission.CanViewUser },
+      { type: "leaf", to: "/storefront-coupon-requests", label: "Coupon Requests", icon: <GiftOutlined />, permission: Permission.CanViewPromos },
     ],
   },
   { type: "leaf", to: "/deals", label: "Deals", icon: <TagsOutlined />, permission: Permission.CanViewBrands },
@@ -96,6 +98,8 @@ const STOREFRONT_PATHS = [
   "/franchise-categories",
   "/franchise-store-owners",
   "/franchise-superadmin-wallet",
+  "/settlement-recovery",
+  "/storefront-coupon-requests",
 ];
 
 function collectLeaves(nodes: NavNode[]): NavLeaf[] {

@@ -180,6 +180,7 @@ export interface StorefrontEarningDto {
   superAppAmount: number;
   fees: number;
   earnedAmount: number;
+  withdrawnAmount: number;
   currency: string;
   status: string;
   dateCreated: string;
@@ -309,6 +310,7 @@ export interface StorefrontPayoutDto {
   processingAt: string | null;
   paidAt: string | null;
   rejectedAt: string | null;
+  commissionReconciled: boolean;
 }
 
 export interface StorefrontPayoutAuditDto {
@@ -500,3 +502,267 @@ export interface StorefrontPaidOrderResponse {
   superAdminWalletBalance: number | null;
   earning: StorefrontEarningDto | null;
 }
+
+// —— Store owner management (StorefrontOwner) ——
+
+/** GET Storefront/GetStorefrontOwners | GetAcceptedStorefrontOwners | GetStorefrontOwner/{ownerId} */
+export interface StorefrontOwnerDetailDto {
+  id: string | null;
+  email: string | null;
+  userName: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  companyName: string | null;
+  phoneNumber: string | null;
+  isCacVerified: boolean;
+  userStatus: string | null;
+  userType: string | null;
+  isSuspended: boolean;
+  isDeleted: boolean;
+  isActive: boolean;
+  isInvited: boolean;
+  isInvitationAccepted: boolean;
+  invitedAt: string | null;
+  acceptedAt: string | null;
+  primaryStorefrontBrandId: string | null;
+  defaultStorefrontPriceMargin: number | null;
+}
+
+/** GET Storefront/GetOwnerCandidates */
+export interface StorefrontOwnerCandidateDto {
+  id: string | null;
+  email: string | null;
+  userName: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  companyName: string | null;
+  phoneNumber: string | null;
+  isCacVerified: boolean;
+  isAlreadyInvited: boolean;
+  isInvitationAccepted: boolean;
+}
+
+/** POST Storefront/InviteStorefrontOwner | ResendStorefrontOwnerInvitation */
+export interface StorefrontOwnerInvitationResponse {
+  owner: StorefrontOwnerDetailDto;
+  expiresAt: string;
+  sentAt: string;
+}
+
+/** POST Storefront/ValidateStorefrontOwnerInvitation */
+export interface StorefrontOwnerInvitationValidationResponse {
+  ownerId: string | null;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  userName: string | null;
+  companyName: string | null;
+  phoneNumber: string | null;
+  isCacVerified: boolean;
+  expiresAt: string;
+  isAccepted: boolean;
+}
+
+export interface StorefrontOwnerInvitationTokenRequest {
+  token: string;
+}
+
+/** GET Storefront/GetStorefrontOwnerBrands/{ownerId} | GetStorefrontOwnerPrimaryBrand/{ownerId} */
+export interface StorefrontOwnerBrandDto {
+  storefrontBrandId: string;
+  brandId: string | null;
+  name: string | null;
+  brandImageUrl: string | null;
+  isSelected: boolean;
+  isPrimary: boolean;
+  storefrontPriceMargin: number | null;
+  globalStorefrontPriceMargin: number;
+  themeName: string | null;
+  themeJson: string | null;
+  ownerDefaultStorefrontPriceMargin: number | null;
+}
+
+export interface StorefrontOwnerBrandMarginEntry {
+  ownerId: string;
+  storefrontBrandId: string;
+  storefrontPriceMargin: number | null;
+}
+
+export interface StorefrontOwnerBrandMarginBulkRequest {
+  entries: StorefrontOwnerBrandMarginEntry[];
+}
+
+export interface StorefrontOwnerBrandSelectionRequest {
+  storefrontBrandIds: string[];
+  primaryStorefrontBrandId?: string | null;
+}
+
+/** PUT Storefront/ConfigureStorefrontOwner/{ownerId} */
+export interface StorefrontOwnerConfigurationRequest {
+  storefrontBrandIds?: string[] | null;
+  primaryStorefrontBrandId?: string | null;
+  defaultStorefrontPriceMargin?: number | null;
+  brandMargins?: StorefrontOwnerBrandMarginEntry[] | null;
+}
+
+// —— Brand theme ——
+
+/** GET Storefront/GetStorefrontBrandTheme/{storefrontBrandId} */
+export interface StorefrontBrandThemeDto {
+  storefrontBrandId: string;
+  themeName: string | null;
+  themeJson: string | null;
+  isActive: boolean;
+}
+
+/** PUT Storefront/SetStorefrontBrandTheme/{storefrontBrandId} */
+export interface StorefrontBrandThemeRequest {
+  themeName: string;
+  themeJson: string;
+  isActive?: boolean;
+}
+
+// —— Per-owner dashboard ——
+
+/** GET admin/storefront/dashboard/{ownerId} */
+export interface StorefrontDashboardDto {
+  ownerId: string | null;
+  currency: string | null;
+  totalOrders: number;
+  paidOrders: number;
+  grossSales: number;
+  superAppOrderValue: number;
+  currentWalletBalance: number;
+  totalCommission: number;
+  currentCommission: number;
+  commissionPaid: number;
+  pendingCommission: number;
+  ordersWaitingForCommission: number;
+  reservedForPayout: number;
+  totalPayoutsPaid: number;
+  recentActivity: StorefrontDashboardActivityDto[] | null;
+}
+
+export interface StorefrontDashboardActivityDto {
+  type: string | null;
+  reference: string | null;
+  description: string | null;
+  amount: number;
+  status: string | null;
+  date: string;
+  orderId: string | null;
+  payoutId: string | null;
+}
+
+// —— Per-owner quote (reuses StorefrontQuoteDto response) ——
+
+/** POST Storefront/GetOwnerQuote/{ownerId} request line (ProductQuantity). */
+export interface StorefrontProductQuantityRequest {
+  productId: string;
+  variantId?: string;
+  locationId?: string | null;
+  quantity: number;
+}
+
+// —— Settlement recovery ——
+
+export type StorefrontSettlementRecoveryStatus =
+  | "RefundPending"
+  | "Refunded"
+  | "Failed";
+
+/** GET admin/storefront/settlement-recovery/orders/{orderId} | pending-refunds */
+export interface StorefrontSettlementRecoveryDto {
+  id: string;
+  orderId: string;
+  ownerId: string | null;
+  externalOrderId: string | null;
+  paymentReference: string | null;
+  refundAmount: number;
+  currency: string | null;
+  status: StorefrontSettlementRecoveryStatus | null;
+  reason: string | null;
+  providerRefundReference: string | null;
+  failureReason: string | null;
+  attemptCount: number;
+  requestedAt: string;
+  reversedAt: string | null;
+  refundedAt: string | null;
+  lastAttemptAt: string | null;
+}
+
+export interface StorefrontSettlementCancellationRequest {
+  reason?: string | null;
+}
+
+export interface StorefrontSettlementRefundCompletionRequest {
+  providerRefundReference: string;
+}
+
+// —— Per-owner tickets (responses reuse TicketResponse from types.ts) ——
+
+export interface StorefrontTicketRequest {
+  description: string;
+  category?: string;
+  topic: string;
+}
+
+export interface StorefrontTicketCommentRequest {
+  comment: string;
+}
+
+// Pagination helpers for new list endpoints
+export type StorefrontPagedOwnerDetails = PaginationResponse<StorefrontOwnerDetailDto>;
+export type StorefrontPagedOwnerCandidates = PaginationResponse<StorefrontOwnerCandidateDto>;
+export type StorefrontPagedSettlementRecovery = PaginationResponse<StorefrontSettlementRecoveryDto>;
+
+// —— Store owner coupon requests ——
+
+export type StorefrontCouponRequestStatus = "Pending" | "Approved" | "Rejected";
+
+export interface StorefrontCouponRequestProductInput {
+  productId: string;
+  requestedPriceInNaira?: number | null;
+  requestedPriceInDollar?: number | null;
+}
+
+export interface StorefrontCouponRequestProductResponse {
+  id: string;
+  productId: string;
+  requestedPriceInNaira: number | null;
+  requestedPriceInDollar: number | null;
+}
+
+/** POST admin/storefront/owner-coupon-requests/owner/{ownerId} */
+export interface CreateStorefrontCouponRequest {
+  name: string;
+  requestedCode?: string | null;
+  reason: string;
+  products: StorefrontCouponRequestProductInput[];
+}
+
+/** PUT admin/storefront/owner-coupon-requests/{requestId}/decision */
+export interface StorefrontCouponRequestDecision {
+  status: StorefrontCouponRequestStatus;
+  adminNote?: string | null;
+}
+
+/** GET admin/storefront/owner-coupon-requests* */
+export interface StorefrontCouponRequestResponse {
+  id: string;
+  storefrontOwnerId: string | null;
+  storefrontOwnerEmail: string | null;
+  storefrontOwnerName: string | null;
+  name: string | null;
+  requestedCode: string | null;
+  reason: string | null;
+  status: StorefrontCouponRequestStatus;
+  adminNote: string | null;
+  reviewedByUserId: string | null;
+  reviewedAt: string | null;
+  dateCreated: string;
+  dateModified: string | null;
+  products: StorefrontCouponRequestProductResponse[] | null;
+}
+
+export type StorefrontPagedCouponRequests = PaginationResponse<StorefrontCouponRequestResponse>;
