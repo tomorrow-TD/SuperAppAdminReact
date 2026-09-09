@@ -1,28 +1,31 @@
-import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Modal,
-  Form,
-  Input,
-  Switch,
-  Skeleton,
-  App as AntdApp,
-  Tag,
-  Divider,
-  Row,
-  Col,
-  Button,
-  Space,
-} from "antd";
-import { ApiOutlined } from "@ant-design/icons";
+import { MultiSelect } from "@/components/MultiSelect";
+import { DynamicsLinkModal } from "@/components/customers/DynamicsLinkModal";
 import { apiGet, apiPatch } from "@/lib/api";
 import type {
   CustomerResponse,
   EditCustomerRequest,
   LocationReturnDTO,
+  UserStatus,
 } from "@/lib/types";
-import { MultiSelect } from "@/components/MultiSelect";
-import { DynamicsLinkModal } from "@/components/customers/DynamicsLinkModal";
+import { UserStatusValues } from "@/lib/types";
+import { ApiOutlined } from "@ant-design/icons";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  App as AntdApp,
+  Button,
+  Col,
+  Divider,
+  Form,
+  Input,
+  Modal,
+  Row,
+  Select,
+  Skeleton,
+  Space,
+  Switch,
+  Tag,
+} from "antd";
+import { useEffect, useMemo, useState } from "react";
 
 interface Props {
   customerId: string | null;
@@ -43,6 +46,7 @@ interface FormState {
   state: string;
   enableCreditTransactions: boolean;
   locationIds: string[];
+  userStatus: UserStatus;
 }
 
 function fromCustomer(c: CustomerResponse): FormState {
@@ -58,6 +62,7 @@ function fromCustomer(c: CustomerResponse): FormState {
     state: c.state ?? "",
     enableCreditTransactions: c.isCreditTransactionEnabled,
     locationIds: c.userWarehouses?.map((w) => w.id) ?? [],
+    userStatus: c.userStatus,
   };
 }
 
@@ -82,6 +87,9 @@ function diffPayload(state: FormState, initial: FormState): EditCustomerRequest 
   });
   if (state.enableCreditTransactions !== initial.enableCreditTransactions) {
     payload.enableCreditTransactions = state.enableCreditTransactions;
+  }
+  if (state.userStatus !== initial.userStatus) {
+    payload.userStatus = state.userStatus;
   }
   const a = [...state.locationIds].sort();
   const b = [...initial.locationIds].sort();
@@ -208,6 +216,16 @@ export function EditCustomerModal({
           </div>
 
           <Form layout="vertical" requiredMark={false}>
+            <Form.Item
+              label="Account status"
+              tooltip="Changing this can suspend or reactivate the account."
+            >
+              <Select
+                value={state.userStatus}
+                onChange={(v) => update("userStatus", v)}
+                options={UserStatusValues.map((s) => ({ value: s, label: s }))}
+              />
+            </Form.Item>
             <Row gutter={16}>
               <Col xs={24} md={12}>
                 <Form.Item label="First name">

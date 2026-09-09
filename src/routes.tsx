@@ -25,6 +25,9 @@ const FranchiseStoreOwnersPage = lazy(() => import("@/pages/FranchiseStoreOwners
 const FranchiseStoreOwnerDetailPage = lazy(() => import("@/pages/FranchiseStoreOwnerDetail"));
 const FranchisePayoutsPage = lazy(() => import("@/pages/FranchisePayouts"));
 const FranchiseSuperAdminWalletPage = lazy(() => import("@/pages/FranchiseSuperAdminWallet"));
+const SettlementRecoveryPage = lazy(() => import("@/pages/SettlementRecovery"));
+const StorefrontCouponRequestsPage = lazy(() => import("@/pages/StorefrontCouponRequests"));
+const StorefrontTicketsPage = lazy(() => import("@/pages/StorefrontTickets"));
 const WarehousesPage = lazy(() => import("@/pages/Warehouses"));
 const TicketsPage = lazy(() => import("@/pages/Tickets"));
 const CustomersPage = lazy(() => import("@/pages/Customers"));
@@ -287,6 +290,30 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute permission={Permission.CanViewUser}>
             {withSuspense(<FranchiseSuperAdminWalletPage />)}
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "settlement-recovery",
+        element: (
+          <ProtectedRoute permission={Permission.CanViewUser}>
+            {withSuspense(<SettlementRecoveryPage />)}
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "storefront-coupon-requests",
+        element: (
+          <ProtectedRoute permission={Permission.CanViewPromos}>
+            {withSuspense(<StorefrontCouponRequestsPage />)}
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "storefront-tickets",
+        element: (
+          <ProtectedRoute permission={Permission.CanViewTicket}>
+            {withSuspense(<StorefrontTicketsPage />)}
           </ProtectedRoute>
         ),
       },
